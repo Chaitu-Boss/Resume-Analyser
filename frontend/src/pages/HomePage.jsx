@@ -1,26 +1,46 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 function HomePage() {
-  const [text, setText] = React.useState("Welcome to Resume Analyser")
-  const [valueTrue, setValueTrue] = React.useState(false)
-  let count = 0
+  const fullText = "Welcome to Resume Analyser";
+  const [displayedText, setDisplayedText] = useState('');
+  const [showSubText, setShowSubText] = useState(false);
+  const indexRef = useRef(0);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      count++;
-      if (count <= text.length) {
-        setText(text.substring(0, count));
+      const currentIndex = indexRef.current;
+      if (currentIndex < fullText.length) {
+        setDisplayedText((prev) => prev + fullText[currentIndex]);
+        indexRef.current += 1;
       } else {
-        setValueTrue(true);
+        clearInterval(interval);
+        setTimeout(() => setShowSubText(true), 500);
       }
-    }, 150);
+    }, 100);
+    return () => clearInterval(interval);
   }, []);
+
   return (
-    <>
-      <div className="grid place-content-center">
-        <p className="text-blue-600 md:text-9xl py-24 px-24 2xl:text-6xl" id="type">{text}</p>
-        {valueTrue && <p className=" text-blue-600 py-10 px-40 md:text-4xl 2xl:text-3xl ">Login To Upload Resume & Analyse</p>}
-      </div>
-    </>
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-purple-100 flex flex-col items-center justify-center text-center">
+      <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-blue-700 px-4">
+        {displayedText}
+        <span className="animate-pulse text-blue-400">|</span>
+      </h1>
+
+      {showSubText && (
+        <div className="mt-10">
+          <p className="text-lg md:text-2xl text-gray-700">
+            🚀 Login to upload your resume and see the magic of AI analysis
+          </p>
+          <a
+            href="/login"
+            className="inline-block mt-6 bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition duration-300"
+          >
+            Get Started
+          </a>
+        </div>
+      )}
+    </div>
   );
 }
 
