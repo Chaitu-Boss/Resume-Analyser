@@ -1,13 +1,35 @@
+import axios from 'axios';
 import React, { useState } from 'react';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log('Logging in with:', { email, password });
-    alert('Login Successful (Simulated)');
+  
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
+    }
+  
+    try {
+      console.log('Logging in with:', { email, password });
+  
+      const response = await axios.post('http://localhost:5000/login', {
+        email,
+        password,
+      }, { withCredentials: true });
+      alert('Login Successful');
+      window.location.href = '/';
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        setError('Invalid credentials. Please try again.');
+      } else {
+        setError('Something went wrong. Please try again later.');
+        console.error(err);
+      }
+    }
   };
 
   const handleRegisterClick = () => {

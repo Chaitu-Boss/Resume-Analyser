@@ -1,21 +1,41 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 
 function RegisterPage() {
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
+    if(!username || !email || !password || !confirmPassword){
+      setError('All fields are required');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    console.log('Registering with:', { name, email, password });
-    alert('Registration Successful (Simulated)');
-    window.location.href = '/login';
+    console.log('Registering with:', { username, email, password });
+    try {
+      const response = await axios.post('http://localhost:5000/signup', {
+        username,
+        email,
+        password,
+      });
+  
+      alert('Registration Successful');
+      window.location.href = '/login';
+    } catch (err) {
+      if (err.response && err.response.status === 409) {
+        setError('User already exists');
+      } else {
+        setError('Something went wrong. Please try again.');
+        console.error(err);
+      }
+    }
   };
 
   const handleLoginClick = () => {
@@ -38,14 +58,14 @@ function RegisterPage() {
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
             <label htmlFor="name" className="block text-gray-700 font-medium mb-1">
-              Name
+              Username
             </label>
             <input
               type="text"
               id="name"
               className="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               placeholder="Your Name"
               required
             />

@@ -1,4 +1,4 @@
-from flask import Flask, request,jsonify,session
+from flask import Flask, request,jsonify,session,make_response
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from tools.preprocess import preprocess
@@ -16,6 +16,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 CORS(app, supports_credentials=True)
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 try:
     dbx = dropbox.Dropbox(os.getenv("DROPBOX_API_KEY"))
@@ -113,8 +114,11 @@ def login():
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    session.pop('email', None)
-    return jsonify({'message': 'Logout successful'}), 200
+    session.pop('session', None)
+    # return jsonify({'message': 'Logout successful'}), 200
+    response = make_response(jsonify({'message': 'Logout successful'}), 200)
+    response.set_cookie('session', '', expires=0)  # clear cookie
+    return response
 
 @app.route('/home')
 def home():
