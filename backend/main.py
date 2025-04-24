@@ -3,7 +3,7 @@ from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from tools.preprocess import preprocess
 from tools.fetchJobs import get_jobs
-from agents.jobs_agent import jobs_agent
+import json
 from agents.score_agent import score_agent
 from agents.resume_recommendation_agent import resume_recommendation_agent
 import os
@@ -37,6 +37,7 @@ def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "File not found"}), 400
     file = request.files['file']
+    email = request.form.get('email') 
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
     filename = secure_filename(file.filename)
@@ -46,36 +47,55 @@ def upload_file():
         shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
         shared_url = shared_link_metadata.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
         json_data = preprocess(shared_url)
-        inserted_result = collection.insert_one(json_data)
-        inserted_id = inserted_result.inserted_id
-        return jsonify({"_id": str(inserted_id), **json_data}), 200
+        recommendations=resume_recommendation_agent.run(json.dumps(json_data))
+        
+        final_response = {
+            'login_email': email,
+            'resume_data': json_data,
+            'recommendations': recommendations.content
+        }
+
+        inserted_result = collection.insert_one(final_response)
+        final_response['_id'] = str(inserted_result.inserted_id)
+
+        return jsonify(final_response), 200
     except dropbox.exceptions.ApiError as e: 
+        print(str(e))
         return jsonify({"error": str(e)}), 400
 
-@app.route('/jobs', methods=['GET'])
+
+@app.route('/get-data-from-email', methods=['POST'])
+def get_data_from_email():
+    email = request.get_json().get("email")
+    user = users_collection.find_one({ "email": email })
+    data = collection.find_one({ "login_email": email })
+    if not user:
+        return jsonify({ "error": "User not found" }), 404
+    final_response = {
+        "username": user.get("username", "")
+    }
+    if data and "resume_data" in data:
+        final_response["data"] = data["resume_data"]
+    if data and "recommendations" in data:
+        final_response["recommendations"] = data["recommendations"]
+    return jsonify(final_response), 200
+
+@app.route('/jobs', methods=['POST'])
 def search():
     query = request.get_json()
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
-    jobs=get_jobs(query)
-    response = jobs_agent.run(jobs)
-    return jsonify({"jobs":response.content}), 200
+    jobs=get_jobs(query['query'])
+    return jsonify({"jobs":jobs}), 200
     
 @app.route('/jd-match',methods=['POST'])
 def jd_match():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Data parameter is required"}), 400
+    
     response=score_agent.run(data)
     return jsonify({"score":response.content}), 200
-
-@app.route('/recommendations', methods=['GET'])
-def recommendations():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No Resume Data"}), 400
-    response=resume_recommendation_agent.run(data)
-    return jsonify({"recommendations":response.content}), 200
 
 @app.route('/signup', methods=['POST'])
 def signup():

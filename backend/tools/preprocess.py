@@ -18,14 +18,22 @@ def fetch_github_profile(username):
     return user_data
 
 def fetch_linkedin_profile(linkedin_url):
-    api_endpoint = 'https://nubela.co/proxycurl/api/v2/linkedin'
-    linkedin_profile_url = linkedin_url
-    api_key = os.getenv("PROXYCURL_API_KEY")
-    headers = {'Authorization': 'Bearer ' + api_key}
-    response = requests.get(api_endpoint,
-                        params={'url': linkedin_profile_url,'skills': 'include'},
-                        headers=headers)
-    return response.json()
+    url = "https://linkedin-data-api.p.rapidapi.com/get-profile-data-by-url"
+    url2 = "https://linkedin-data-api.p.rapidapi.com/all-profile-data"
+    querystring1 = {"url":linkedin_url}
+
+    headers = {
+	    "x-rapidapi-key": os.getenv("RAPID_API_KEY"),
+	    "x-rapidapi-host": "linkedin-data-api.p.rapidapi.com"
+    }
+
+    response = requests.get(url, headers=headers, params=querystring1)
+    username=response.json()['username']
+    querystring2 = {"username":username}
+    final_response = requests.get(url2, headers=headers, params=querystring2)
+    final_response=final_response.json()
+    final_response=final_response['data']
+    return final_response
 
 def preprocess(filename):
     response = requests.get(filename, stream=True)
@@ -56,8 +64,14 @@ def preprocess(filename):
     json_data=parsed_json
     text_summary=additional_text
     print(json_data)
+    if (not json_data.get('linkedin_url') and 
+    not json_data.get('github_username') and 
+    not json_data.get('githubUsername') and 
+    not json_data.get('linkedinUrl') and 
+    not json_data.get('linked_in_url')):
+        return json_data
     github_username=json_data['github_username'] or json_data['githubUsername']
-    linkedin_url=json_data['linkedin_url'] or json_data['linkedinUrl']
+    linkedin_url=json_data['linkedin_url'] or json_data['linkedinUrl'] or json_data['linked_in_url']
     
     github_data=fetch_github_profile(github_username)
     linkedin_data=fetch_linkedin_profile(linkedin_url)

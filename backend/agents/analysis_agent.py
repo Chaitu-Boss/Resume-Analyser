@@ -18,6 +18,7 @@ analysis_agent=Agent(
         Your job is finding out the name, role, github username, projects, skills/technologies, 
         education and any other aspects present in the resume text.
         For each skill also give the level which signifies the expertise of the candidate in that skill
+        The level should be an integer value from 1-100
         Also give a detailed summary of the candidate
         """),
     expected_output=dedent("""\
