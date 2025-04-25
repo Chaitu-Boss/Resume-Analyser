@@ -76,7 +76,6 @@ def preprocess(filename):
     github_data=fetch_github_profile(github_username)
     linkedin_data=fetch_linkedin_profile(linkedin_url)
     
-    
     json_data['url']=filename
     json_data['linkedin_data']=linkedin_data
     json_data['github_data']=github_data

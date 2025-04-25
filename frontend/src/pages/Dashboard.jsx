@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [skillsData, setSkillsData] = useState([]);
   const [resumeLink, setResumeLink] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+  const [jobDescriptionResult, setJobDescriptionResult] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [jobSearchResults, setJobSearchResults] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -65,9 +66,6 @@ export default function Dashboard() {
 
     return result;
   }
-
-
-
   const fetchUserData = async () => {
     const email = localStorage.getItem("email");
     if (!email) return;
@@ -99,9 +97,15 @@ export default function Dashboard() {
   useEffect(() => {
     fetchUserData();
   }, []);
+  function extractJDMatch(rawText) {
+    const scoreMatch = rawText.match(/Compatibility Score:\s*(\d+)/);
+    const justificationMatch = rawText.match(/Justification:\s*([\s\S]*)/);
 
+    const score = scoreMatch ? scoreMatch[1] : null;
+    const justification = justificationMatch ? justificationMatch[1].trim() : null;
 
-
+    return { score, justification };
+  }
   const handleFileChange = (e) => setResumeFile(e.target.files[0]);
 
   const handleSubmit = async () => {
@@ -134,7 +138,8 @@ export default function Dashboard() {
   const handleMatchJD = async () => {
     setIsMatching(true);
     try {
-      console.log("Matching JD:", jobDescription);
+      const res = await axios.post("http://localhost:5000/jd-match", { "email": localStorage.getItem("email"), "jobs_description": jobDescription }, { withCredentials: true });
+      setJobDescriptionResult(extractJDMatch(res.data.score))
     } catch (err) {
       console.error(err);
     } finally {
@@ -252,11 +257,33 @@ export default function Dashboard() {
                 "Match Resume to JD"
               )}
             </button>
+            {
+              jobDescriptionResult && (
+                <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg border mt-3 border-gray-200">
+                  <div className="mb-4">
+                    <h2 className="text-xl font-bold text-indigo-600">JD Compatibility Result</h2>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-gray-700 text-sm">
+                      <span className="font-semibold text-gray-900">Compatibility Score:</span>{' '}
+                      <span className="text-indigo-500 font-bold text-lg">{jobDescriptionResult.score}</span>
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+                      {jobDescriptionResult.justification}
+                    </p>
+                  </div>
+                </div>
+              )
+            }
 
           </div><div className="bg-white p-6 rounded-2xl shadow-md">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Resume Improvement Recommendations</h2>
               <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
-                <h1 className="text-3xl font-bold text-center text-indigo-800 mb-4">🎯 Resume Analysis Recommendations</h1>
+                <h1 className="text-3xl font-bold text-center text-indigo-800 mb-4">🎯 Resume Recommendations</h1>
 
                 {sections.map((section, index) => (
                   <div key={index} className="bg-white shadow-md rounded-2xl p-6">
@@ -301,8 +328,6 @@ export default function Dashboard() {
                   )}
                 </button>
               </div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Recommended Jobs</h3>
-
               <div className="p-6 space-y-6">
                 {jobSearchResults.length === 0 && <p className="text-gray-500">No jobs found.</p>}
                 {jobSearchResults.map((job, index) => (

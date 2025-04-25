@@ -19,7 +19,11 @@ CORS(app, supports_credentials=True)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 try:
-    dbx = dropbox.Dropbox(os.getenv("DROPBOX_API_KEY"))
+    dbx = dropbox.Dropbox(
+    app_key=os.getenv("DROPBOX_APP_KEY"),
+    app_secret=os.getenv("DROPBOX_APP_SECRET"),
+    oauth2_refresh_token=os.getenv("DROPBOX_REFRESH_TOKEN")
+    )
     client = MongoClient(os.getenv("MONGO_URI"))
     db = client["test"]
     collection = db["resumes"]
@@ -40,10 +44,9 @@ def upload_file():
     email = request.form.get('email') 
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    filename = secure_filename(file.filename)
-    dropbox_path = f"/resumes/{filename}"
+    dropbox_path = f"/resumes/{secure_filename(email)}_resume.pdf"
     try:
-        dbx.files_upload(file.read(), dropbox_path)
+        dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode('overwrite'))
         shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
         shared_url = shared_link_metadata.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
         json_data = preprocess(shared_url)
@@ -54,10 +57,13 @@ def upload_file():
             'resume_data': json_data,
             'recommendations': recommendations.content
         }
-
-        inserted_result = collection.insert_one(final_response)
-        final_response['_id'] = str(inserted_result.inserted_id)
-
+        existing = collection.find_one({"login_email": email})
+        if existing:
+            collection.update_one({"login_email": email}, {"$set": final_response})
+            final_response['_id'] = str(existing['_id'])
+        else:
+            inserted_result = collection.insert_one(final_response)
+            final_response['_id'] = str(inserted_result.inserted_id)
         return jsonify(final_response), 200
     except dropbox.exceptions.ApiError as e: 
         print(str(e))
@@ -90,11 +96,19 @@ def search():
     
 @app.route('/jd-match',methods=['POST'])
 def jd_match():
-    data = request.get_json()
+    jd = request.get_json().get('jobs_description')
+    email=request.get_json().get("email")
+    data = collection.find_one({ "login_email": email })
+    data = data.get("resume_data")
     if not data:
+        return jsonify({"error": "Resume data not found"}), 404
+    to_send={
+        "resume":data,
+        "jd":jd
+    }
+    if not jd:
         return jsonify({"error": "Data parameter is required"}), 400
-    
-    response=score_agent.run(data)
+    response=score_agent.run(json.dumps(to_send))
     return jsonify({"score":response.content}), 200
 
 @app.route('/signup', methods=['POST'])
